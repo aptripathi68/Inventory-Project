@@ -41,45 +41,46 @@ def initialize_database():
             section_name TEXT,
             unit_weight REAL,
             quantity REAL,
-            price REAL
+            price REAL,
+            stock_date TEXT
         )
     """)
 
     conn.commit()
     conn.close()
 
-
-def append_stock(selected_row, quantity, price):
+def append_stock(selected_row, quantity, price, stock_date):
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
 
     cursor.execute("""
-        INSERT INTO inventory (
-            item_master_id,
-            item_description,
-            grade_name,
-            group1_name,
-            group2_name,
-            section_name,
-            unit_weight,
-            quantity,
-            price
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    """, (
-        selected_row["Item Master ID"],
-        selected_row["Item Description"],
-        selected_row["Grade Name"],
-        selected_row["Group1 Name"],
-        selected_row["Group2 Name"],
-        selected_row["Section Name"],
-        selected_row["Unit Wt. (kg/m)"],
+    INSERT INTO inventory (
+        item_master_id,
+        item_description,
+        grade_name,
+        group1_name,
+        group2_name,
+        section_name,
+        unit_weight,
         quantity,
-        price
-    ))
+        price,
+        stock_date
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+""", (
+    selected_row["Item Master ID"],
+    selected_row["Item Description"],
+    selected_row["Grade Name"],
+    selected_row["Group1 Name"],
+    selected_row["Group2 Name"],
+    selected_row["Section Name"],
+    selected_row["Unit Wt. (kg/m)"],
+    quantity,
+    price,
+    str(stock_date)   # 👈 NEW
+))
 
-    conn.commit()
-    conn.close()
-
+conn.commit()
+conn.close()
 
 def load_master_data():
     df = pd.read_excel(MASTER_FILE)
@@ -181,7 +182,7 @@ price = st.number_input("Enter Price per unit", min_value=0.0, step=0.01)
 # Add stock button
 if st.button("➕ Add Stock"):
     if quantity > 0 and price > 0:
-        append_stock(selected_row, quantity, price)
+        def append_stock(selected_row, quantity, price, stock_date):
         st.success("✅ Stock entry successful!")
     else:
         st.error("❌ Quantity and Price must be greater than 0")
