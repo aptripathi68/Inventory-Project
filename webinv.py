@@ -3,6 +3,7 @@ import pandas as pd
 import csv
 import os
 import sqlite3
+import hashlib
 
 # ---------- Simple Authentication ----------
 
