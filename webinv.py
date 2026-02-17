@@ -54,33 +54,33 @@ def append_stock(selected_row, quantity, price, stock_date):
     cursor = conn.cursor()
 
     cursor.execute("""
-    INSERT INTO inventory (
-        item_master_id,
-        item_description,
-        grade_name,
-        group1_name,
-        group2_name,
-        section_name,
-        unit_weight,
+        INSERT INTO inventory (
+            item_master_id,
+            item_description,
+            grade_name,
+            group1_name,
+            group2_name,
+            section_name,
+            unit_weight,
+            quantity,
+            price,
+            stock_date
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """, (
+        selected_row["Item Master ID"],
+        selected_row["Item Description"],
+        selected_row["Grade Name"],
+        selected_row["Group1 Name"],
+        selected_row["Group2 Name"],
+        selected_row["Section Name"],
+        selected_row["Unit Wt. (kg/m)"],
         quantity,
         price,
-        stock_date
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-""", (
-    selected_row["Item Master ID"],
-    selected_row["Item Description"],
-    selected_row["Grade Name"],
-    selected_row["Group1 Name"],
-    selected_row["Group2 Name"],
-    selected_row["Section Name"],
-    selected_row["Unit Wt. (kg/m)"],
-    quantity,
-    price,
-    str(stock_date)   # 👈 NEW
-))
+        str(stock_date)
+    ))
 
-conn.commit()
-conn.close()
+    conn.commit()
+    conn.close()
 
 def load_master_data():
     df = pd.read_excel(MASTER_FILE)
