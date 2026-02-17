@@ -183,7 +183,7 @@ price = st.number_input("Enter Price per unit", min_value=0.0, step=0.01)
 if st.button("➕ Add Stock"):
     if quantity > 0 and price > 0:
         def append_stock(selected_row, quantity, price, stock_date):
-        st.success("✅ Stock entry successful!")
+            st.success("✅ Stock entry successful!")
     else:
         st.error("❌ Quantity and Price must be greater than 0")
 
