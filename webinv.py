@@ -175,6 +175,14 @@ st.write({
     "Unit Weight (kg/m)": selected_row["Unit Wt. (kg/m)"]
 })
 
+from datetime import date
+
+# Date Input
+stock_date = st.date_input(
+    "📅 Select Stock Entry Date",
+    value=date.today()
+)
+
 # Quantity & Price input
 quantity = st.number_input("Enter Quantity", min_value=0.0, step=0.01)
 price = st.number_input("Enter Price per unit", min_value=0.0, step=0.01)
