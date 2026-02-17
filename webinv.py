@@ -4,6 +4,17 @@ import csv
 import os
 import sqlite3
 
+# ---------- Simple Authentication ----------
+
+def check_login(username, password):
+    users = {
+        "admin": hashlib.sha256("admin123".encode()).hexdigest(),
+        "arun": hashlib.sha256("inventory".encode()).hexdigest()
+    }
+
+    if username in users:
+        return users[username] == hashlib.sha256(password.encode()).hexdigest()
+    return False
 
 
 
@@ -98,6 +109,28 @@ initialize_database()
 
 # ---------- Streamlit Interface ----------
 
+# ---------- Login System ----------
+
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
+
+if not st.session_state.logged_in:
+    st.title("🔐 Login Required")
+
+    username = st.text_input("Username")
+    password = st.text_input("Password", type="password")
+
+    if st.button("Login"):
+        if check_login(username, password):
+            st.session_state.logged_in = True
+            st.success("Login Successful!")
+            st.rerun()
+        else:
+            st.error("Invalid Username or Password")
+
+    st.stop()
+
+
 st.title("📦 Stock Entry System")
 
 # Initialize stock file
@@ -166,6 +199,16 @@ if not stock_df.empty:
 
     st.dataframe(display_df)
 
+# ---------- Export to Excel ----------
+if not stock_df.empty:
+    export_df = display_df.copy()
+
+    st.download_button(
+        label="📥 Download Stock as Excel",
+        data=export_df.to_excel(index=False, engine="openpyxl"),
+        file_name="Current_Stock.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
     st.markdown("### 🗑 Delete Stock Entry")
 
     # Select database ID (real ID from SQLite)
