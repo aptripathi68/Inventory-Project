@@ -191,7 +191,7 @@ stock_df = load_stock_data()
 
 if not stock_df.empty:
 
-    # Hide internal item_master_id column (optional)
+    # Hide internal column
     display_df = stock_df.drop(columns=["item_master_id"], errors="ignore")
 
     # Make display index start from 1
@@ -199,19 +199,22 @@ if not stock_df.empty:
 
     st.dataframe(display_df)
 
-# ---------- Export to Excel ----------
-if not stock_df.empty:
-    export_df = display_df.copy()
+    # ---------- Export to Excel ----------
+    import io
+    buffer = io.BytesIO()
+    display_df.to_excel(buffer, index=False, engine="openpyxl")
+    buffer.seek(0)
 
     st.download_button(
         label="📥 Download Stock as Excel",
-        data=export_df.to_excel(index=False, engine="openpyxl"),
+        data=buffer,
         file_name="Current_Stock.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
+
+    # ---------- Delete Section ----------
     st.markdown("### 🗑 Delete Stock Entry")
 
-    # Select database ID (real ID from SQLite)
     row_to_delete = st.selectbox(
         "Select ID to Delete",
         stock_df["id"]
