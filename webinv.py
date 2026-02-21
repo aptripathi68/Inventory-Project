@@ -252,6 +252,9 @@ html5QrcodeScanner.render(onScanSuccess);
 
 qr_code = qr_component
 
+if not qr_code:
+    st.warning("QR not scanned")
+
 
 # ---------- SNAPSHOT ----------
 st.markdown("### 📸 Item Snapshot (Optional)")
