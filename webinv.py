@@ -283,8 +283,9 @@ if gps_component:
     latitude = float(latitude)
     longitude = float(longitude)
     st.success(f"📍 Location Captured: {latitude}, {longitude}")
-else:
-    latitude, longitude = None, None
+
+if not qr_code:
+    st.warning("QR not scanned")
     
 
 # ---------- Rack & Shelf ----------
