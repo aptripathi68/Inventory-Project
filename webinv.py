@@ -223,7 +223,6 @@ length = st.number_input("length (Meters)", min_value=0.0, step=0.01)
 width = st.number_input("width (Meters)", min_value=0.0, step=0.01)
 
 # ---------- QR Scan from Camera ----------
-from pyzbar.pyzbar import decode
 from PIL import Image
 
 qr_code = None
@@ -231,7 +230,6 @@ snapshot = st.camera_input("📸 Scan QR Code")
 
 if snapshot is not None:
     image = Image.open(snapshot)
-    decoded_objects = decode(image)
 
     if decoded_objects:
         qr_code = decoded_objects[0].data.decode("utf-8")
