@@ -231,30 +231,47 @@ st.markdown("### 📷 Scan QR Code")
 
 qr_component = components.html("""
 <script src="https://unpkg.com/html5-qrcode"></script>
+
 <div id="reader" style="width:300px;"></div>
 
 <script>
-const streamlitDoc = window.parent;
+function startScanner() {
 
-function onScanSuccess(decodedText) {
-    streamlitDoc.postMessage(
-        { type: "streamlit:setComponentValue", value: decodedText },
-        "*"
-    );
+    Html5Qrcode.getCameras().then(devices => {
+
+        if (devices && devices.length) {
+
+            // Try to find back camera
+            let backCamera = devices.find(device =>
+                device.label.toLowerCase().includes('back') ||
+                device.label.toLowerCase().includes('rear')
+            );
+
+            let cameraId = backCamera ? backCamera.id : devices[0].id;
+
+            const html5QrCode = new Html5Qrcode("reader");
+
+            html5QrCode.start(
+                cameraId,
+                { fps: 10, qrbox: 250 },
+                (decodedText) => {
+                    window.parent.postMessage(
+                        { type: "streamlit:setComponentValue", value: decodedText },
+                        "*"
+                    );
+                }
+            );
+        }
+    }).catch(err => {
+        console.error(err);
+    });
 }
 
-let html5QrcodeScanner = new Html5QrcodeScanner(
-    "reader", { fps: 10, qrbox: 250 }
-);
-html5QrcodeScanner.render(onScanSuccess);
+startScanner();
 </script>
 """, height=350)
 
 qr_code = qr_component
-
-if not qr_code:
-    st.warning("QR not scanned")
-
 
 # ---------- SNAPSHOT ----------
 st.markdown("### 📸 Item Snapshot (Optional)")
