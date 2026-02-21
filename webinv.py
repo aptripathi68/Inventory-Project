@@ -222,23 +222,67 @@ thickness = st.number_input("thickness", min_value=0.0, step=0.01)
 length = st.number_input("length (Meters)", min_value=0.0, step=0.01)
 width = st.number_input("width (Meters)", min_value=0.0, step=0.01)
 
-# ---------- QR Scan from Camera ----------
-qr_code = st.text_input("Scan QR Code (Use Mobile Camera App)")
-snapshot = st.camera_input("Take Snapshot (Optional)")
+import streamlit.components.v1 as components
 
-# ---------- Auto GPS Location ----------
-from streamlit_geolocation import streamlit_geolocation
+# ---------- PROFESSIONAL QR SCANNER ----------
+st.markdown("### 📷 Scan QR Code")
 
-location = streamlit_geolocation()
+qr_html = """
+<script src="https://unpkg.com/html5-qrcode"></script>
+<div id="reader" style="width:300px;"></div>
+<script>
+function onScanSuccess(decodedText, decodedResult) {
+    const streamlitDoc = window.parent.document;
+    const input = streamlitDoc.querySelector('input[aria-label="qr_value"]');
+    if (input){
+        input.value = decodedText;
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+}
+let html5QrcodeScanner = new Html5QrcodeScanner(
+    "reader", { fps: 10, qrbox: 250 });
+html5QrcodeScanner.render(onScanSuccess);
+</script>
+"""
 
-if location:
-    latitude = location["latitude"]
-    longitude = location["longitude"]
-    st.write("📍 Latitude:", latitude)
-    st.write("📍 Longitude:", longitude)
+st.text_input("qr_value", key="qr_value", label_visibility="collapsed")
+components.html(qr_html, height=350)
+
+qr_code = st.session_state.get("qr_value")
+
+# ---------- SNAPSHOT ----------
+st.markdown("### 📸 Item Snapshot (Optional)")
+snapshot = st.camera_input("Take Snapshot")
+
+# ---------- AUTO GPS LOCATION ----------
+st.markdown("### 📍 Auto GPS Location")
+
+gps_html = """
+<script>
+navigator.geolocation.getCurrentPosition(function(position) {
+    const lat = position.coords.latitude;
+    const lon = position.coords.longitude;
+    const loc = lat + "," + lon;
+    const streamlitDoc = window.parent.document;
+    const input = streamlitDoc.querySelector('input[aria-label="gps_value"]');
+    if (input){
+        input.value = loc;
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+});
+</script>
+"""
+
+st.text_input("gps_value", key="gps_value", label_visibility="collapsed")
+components.html(gps_html, height=0)
+
+if st.session_state.get("gps_value"):
+    latitude, longitude = st.session_state["gps_value"].split(",")
+    latitude = float(latitude)
+    longitude = float(longitude)
+    st.success(f"📍 Location Captured: {latitude}, {longitude}")
 else:
-    latitude = None
-    longitude = None
+    latitude, longitude = None, None
 
 # ---------- Rack & Shelf ----------
 rack = st.number_input("Rack Number", min_value=0, step=1)
