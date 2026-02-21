@@ -223,19 +223,8 @@ length = st.number_input("length (Meters)", min_value=0.0, step=0.01)
 width = st.number_input("width (Meters)", min_value=0.0, step=0.01)
 
 # ---------- QR Scan from Camera ----------
-from PIL import Image
-
-qr_code = None
-snapshot = st.camera_input("📸 Scan QR Code")
-
-if snapshot is not None:
-    image = Image.open(snapshot)
-
-    if decoded_objects:
-        qr_code = decoded_objects[0].data.decode("utf-8")
-        st.success(f"QR Code Detected: {qr_code}")
-    else:
-        st.warning("No QR code detected.")
+qr_code = st.text_input("Scan QR Code (Use Mobile Camera App)")
+snapshot = st.camera_input("Take Snapshot (Optional)")
 
 # ---------- Auto GPS Location ----------
 from streamlit_geolocation import streamlit_geolocation
