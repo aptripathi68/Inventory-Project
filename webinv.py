@@ -31,53 +31,104 @@ def initialize_database():
     cursor = conn.cursor()
 
     cursor.execute("""
-        CREATE TABLE IF NOT EXISTS inventory (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            item_master_id TEXT,
-            item_description TEXT,
-            grade_name TEXT,
-            group1_name TEXT,
-            group2_name TEXT,
-            section_name TEXT,
-            unit_weight REAL,
-            quantity REAL,
-            price REAL,
-            stock_date TEXT
-        )
-    """)
+    CREATE TABLE IF NOT EXISTS inventory (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        item_master_id TEXT,
+        item_description TEXT,
+        grade_name TEXT,
+        group1_name TEXT,
+        group2_name TEXT,
+        section_name TEXT,
+        unit_weight REAL,
+        source TEXT,
+        vendor_name TEXT,
+        make TEXT,
+        vehicle_number TEXT,
+        invoice_date TEXT,
+        project_name TEXT,
+        thickness REAL,
+        length REAL,
+        width REAL,
+        qr_code TEXT,
+        snapshot TEXT,
+        latitude REAL,
+        longitude REAL,
+        rack INTEGER,
+        shelf INTEGER,
+        quantity REAL,
+        price REAL,
+        stock_date TEXT
+    )
+""")
 
     conn.commit()
     conn.close()
 
-def append_stock(selected_row, quantity, price, stock_date):
+def append_stock(selected_row, source, vendor_name, make,
+                 vehicle_number, invoice_date, project_name,
+                 thickness, length, width,
+                 qr_code, snapshot_path,
+                 latitude, longitude,
+                 rack, shelf,
+                 quantity, price, stock_date):
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
 
     cursor.execute("""
-        INSERT INTO inventory (
-            item_master_id,
-            item_description,
-            grade_name,
-            group1_name,
-            group2_name,
-            section_name,
-            unit_weight,
-            quantity,
-            price,
-            stock_date
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    """, (
-        selected_row["Item Master ID"],
-        selected_row["Item Description"],
-        selected_row["Grade Name"],
-        selected_row["Group1 Name"],
-        selected_row["Group2 Name"],
-        selected_row["Section Name"],
-        selected_row["Unit Wt. (kg/m)"],
-        quantity,
-        price,
-        str(stock_date)
-    ))
+INSERT INTO inventory (
+    item_master_id,
+    item_description,
+    grade_name,
+    group1_name,
+    group2_name,
+    section_name,
+    unit_weight,
+    source,
+    vendor_name,
+    make,
+    vehicle_number,
+    invoice_date,
+    project_name,
+    thickness,
+    length,
+    width,
+    qr_code,
+    snapshot,
+    latitude,
+    longitude,
+    rack,
+    shelf,
+    quantity,
+    price,
+    stock_date
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+""", (
+    selected_row["Item Master ID"],
+    selected_row["Item Description"],
+    selected_row["Grade Name"],
+    selected_row["Group1 Name"],
+    selected_row["Group2 Name"],
+    selected_row["Section Name"],
+    selected_row["Unit Wt. (kg/m)"],
+    source,
+    vendor_name,
+    make,
+    vehicle_number,
+    str(invoice_date),
+    project_name,
+    thickness,
+    length,
+    width,
+    qr_code,
+    snapshot_path,
+    latitude,
+    longitude,
+    rack,
+    shelf,
+    quantity,
+    price,
+    str(stock_date)
+))
 
     conn.commit()
     conn.close()
@@ -166,6 +217,46 @@ selected_item_index = st.selectbox(
 
 selected_row = filtered_grade.loc[selected_item_index]
 
+# ---------- Dimension Fields ----------
+thickness = st.number_input("thickness", min_value=0.0, step=0.01)
+length = st.number_input("length (Meters)", min_value=0.0, step=0.01)
+width = st.number_input("width (Meters)", min_value=0.0, step=0.01)
+
+# ---------- QR Scan from Camera ----------
+from pyzbar.pyzbar import decode
+from PIL import Image
+
+qr_code = None
+snapshot = st.camera_input("📸 Scan QR Code")
+
+if snapshot is not None:
+    image = Image.open(snapshot)
+    decoded_objects = decode(image)
+
+    if decoded_objects:
+        qr_code = decoded_objects[0].data.decode("utf-8")
+        st.success(f"QR Code Detected: {qr_code}")
+    else:
+        st.warning("No QR code detected.")
+
+# ---------- Auto GPS Location ----------
+from streamlit_geolocation import streamlit_geolocation
+
+location = streamlit_geolocation()
+
+if location:
+    latitude = location["latitude"]
+    longitude = location["longitude"]
+    st.write("📍 Latitude:", latitude)
+    st.write("📍 Longitude:", longitude)
+else:
+    latitude = None
+    longitude = None
+
+# ---------- Rack & Shelf ----------
+rack = st.number_input("Rack Number", min_value=0, step=1)
+shelf = st.number_input("Shelf Number", min_value=0, step=1)
+
 # Display item details
 st.write("**Item Details:**")
 st.write({
@@ -183,18 +274,81 @@ stock_date = st.date_input(
     value=date.today()
 )
 
-# Quantity & Price input
+# Source, Quantity & Price input
+from datetime import date
+
+vendor_name = st.text_input("Vendor Name")
+make = st.text_input("Make")
+vehicle_number = st.text_input("Vehicle Number")
+
+invoice_date = st.date_input(
+    "📅 Select Invoice Date",
+    value=date.today()
+)
+
+project_name = st.text_input("Project Name")
+
+source_options = ["Spare RM", "Project Inventory", "Off-Cut"]
+
+source = st.selectbox(
+    "Select Source",
+    source_options
+)
 quantity = st.number_input("Enter Quantity", min_value=0.0, step=0.01)
 price = st.number_input("Enter Price per unit", min_value=0.0, step=0.01)
 
 # Add stock button
+import os
+
 if st.button("➕ Add Stock"):
-    if quantity > 0 and price > 0:
-        append_stock(selected_row, quantity, price, stock_date)
+
+    if quantity <= 0 or price <= 0:
+        st.error("❌ Quantity and Price must be greater than 0")
+    else:
+
+        snapshot_path = None
+
+        # Create images folder if not exists
+        if not os.path.exists("images"):
+            os.makedirs("images")
+
+        # Save snapshot only if taken
+        if snapshot is not None:
+            if qr_code:
+                safe_qr = qr_code.replace("/", "_").replace(" ", "_")
+                snapshot_path = f"images/{safe_qr}.jpg"
+            else:
+                from datetime import datetime
+                timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+                snapshot_path = f"images/photo_{timestamp}.jpg"
+
+            with open(snapshot_path, "wb") as f:
+                f.write(snapshot.getbuffer())
+
+        append_stock(
+            selected_row,
+            source,
+            vendor_name,
+            make,
+            vehicle_number,
+            invoice_date,
+            project_name,
+            thickness,
+            length,
+            width,
+            qr_code if qr_code else None,
+            snapshot_path,
+            latitude,
+            longitude,
+            rack,
+            shelf,
+            quantity,
+            price,
+            stock_date
+        )
+
         st.success("✅ Stock entry successful!")
         st.rerun()
-    else:
-        st.error("❌ Quantity and Price must be greater than 0")
 
 # Display current stock
 st.subheader("📊 Current Stock")
