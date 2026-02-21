@@ -225,30 +225,33 @@ width = st.number_input("width (Meters)", min_value=0.0, step=0.01)
 import streamlit.components.v1 as components
 
 # ---------- PROFESSIONAL QR SCANNER ----------
+import streamlit.components.v1 as components
+
 st.markdown("### 📷 Scan QR Code")
 
-qr_html = """
+qr_component = components.html("""
 <script src="https://unpkg.com/html5-qrcode"></script>
 <div id="reader" style="width:300px;"></div>
+
 <script>
-function onScanSuccess(decodedText, decodedResult) {
-    const streamlitDoc = window.parent.document;
-    const input = streamlitDoc.querySelector('input[aria-label="qr_value"]');
-    if (input){
-        input.value = decodedText;
-        input.dispatchEvent(new Event('input', { bubbles: true }));
-    }
+const streamlitDoc = window.parent;
+
+function onScanSuccess(decodedText) {
+    streamlitDoc.postMessage(
+        { type: "streamlit:setComponentValue", value: decodedText },
+        "*"
+    );
 }
+
 let html5QrcodeScanner = new Html5QrcodeScanner(
-    "reader", { fps: 10, qrbox: 250 });
+    "reader", { fps: 10, qrbox: 250 }
+);
 html5QrcodeScanner.render(onScanSuccess);
 </script>
-"""
+""", height=350)
 
-st.text_input("qr_value", key="qr_value", label_visibility="collapsed")
-components.html(qr_html, height=350)
+qr_code = qr_component
 
-qr_code = st.session_state.get("qr_value")
 
 # ---------- SNAPSHOT ----------
 st.markdown("### 📸 Item Snapshot (Optional)")
@@ -257,32 +260,29 @@ snapshot = st.camera_input("Take Snapshot")
 # ---------- AUTO GPS LOCATION ----------
 st.markdown("### 📍 Auto GPS Location")
 
-gps_html = """
+gps_component = components.html("""
 <script>
 navigator.geolocation.getCurrentPosition(function(position) {
     const lat = position.coords.latitude;
     const lon = position.coords.longitude;
-    const loc = lat + "," + lon;
-    const streamlitDoc = window.parent.document;
-    const input = streamlitDoc.querySelector('input[aria-label="gps_value"]');
-    if (input){
-        input.value = loc;
-        input.dispatchEvent(new Event('input', { bubbles: true }));
-    }
+    const value = lat + "," + lon;
+
+    window.parent.postMessage(
+        { type: "streamlit:setComponentValue", value: value },
+        "*"
+    );
 });
 </script>
-"""
+""", height=0)
 
-st.text_input("gps_value", key="gps_value", label_visibility="collapsed")
-components.html(gps_html, height=0)
-
-if st.session_state.get("gps_value"):
-    latitude, longitude = st.session_state["gps_value"].split(",")
+if gps_component:
+    latitude, longitude = gps_component.split(",")
     latitude = float(latitude)
     longitude = float(longitude)
     st.success(f"📍 Location Captured: {latitude}, {longitude}")
 else:
     latitude, longitude = None, None
+    
 
 # ---------- Rack & Shelf ----------
 rack = st.number_input("Rack Number", min_value=0, step=1)
