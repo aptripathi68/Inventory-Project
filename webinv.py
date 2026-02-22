@@ -353,6 +353,8 @@ source = st.selectbox(
 )
 quantity = st.number_input("Enter Quantity", value=None, placeholder="Enter quantity")
 price = st.number_input("Enter Price per unit", value=None, placeholder="Enter price")
+st.markdown("### 📸 Item Snapshot (Optional)")
+snapshot = st.camera_input("Take Snapshot")
 
 # Add stock button
 import os
