@@ -384,47 +384,45 @@ import os
 
 if st.button("➕ Add Stock"):
 
-    if quantity <= 0 or price <= 0:
+    # Validate
+    if quantity is None or price is None or quantity <= 0 or price <= 0:
         st.error("❌ Quantity and Price must be greater than 0")
+
     else:
 
         snapshot_path = None
 
-# Create images folder if not exists
-if not os.path.exists("images"):
-    os.makedirs("images")
+        # Create images folder if not exists
+        if not os.path.exists("images"):
+            os.makedirs("images")
 
-# Save snapshot only if taken
-if snapshot is not None:
+        # Save snapshot only if taken
+        if snapshot is not None:
 
-    from datetime import datetime
+            from datetime import datetime
 
-    # Get QR value safely
-    qr_value = st.session_state.get("qr_value")
+            qr_value = st.session_state.get("qr_value")
 
-    # If QR exists and is valid string → use it as filename
-    if qr_value and isinstance(qr_value, str):
+            if qr_value and isinstance(qr_value, str):
 
-        # Clean filename (remove unsafe characters)
-        safe_qr = (
-            qr_value.strip()
-            .replace("/", "_")
-            .replace("\\", "_")
-            .replace(" ", "_")
-            .replace(":", "_")
-        )
+                safe_qr = (
+                    qr_value.strip()
+                    .replace("/", "_")
+                    .replace("\\", "_")
+                    .replace(" ", "_")
+                    .replace(":", "_")
+                )
 
-        snapshot_path = f"images/{safe_qr}.jpg"
+                snapshot_path = f"images/{safe_qr}.jpg"
 
-    else:
-        # If no QR → use timestamp
-        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
-        snapshot_path = f"images/photo_{timestamp}.jpg"
+            else:
+                timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+                snapshot_path = f"images/photo_{timestamp}.jpg"
 
-    # Save image
-    with open(snapshot_path, "wb") as f:
-        f.write(snapshot.getbuffer())
+            with open(snapshot_path, "wb") as f:
+                f.write(snapshot.getbuffer())
 
+        # Insert into database (ALWAYS inside button block)
         append_stock(
             selected_row,
             source,
@@ -448,6 +446,11 @@ if snapshot is not None:
         )
 
         st.success("✅ Stock entry successful!")
+
+        # Reset QR & GPS to prevent repeat
+        st.session_state["qr_value"] = ""
+        st.session_state["gps_value"] = ""
+
         st.rerun()
 
 # Display current stock
