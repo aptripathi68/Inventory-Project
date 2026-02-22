@@ -244,36 +244,42 @@ initialize_database()
 import streamlit as st
 
 # ---------- Initialize Session State ----------
-if "logged_in" not in st.session_state:
-    st.session_state["logged_in"] = False
-if "username" not in st.session_state:
-    st.session_state["username"] = ""
-if "role" not in st.session_state:
-    st.session_state["role"] = ""
+for key in ["logged_in", "username", "role"]:
+    if key not in st.session_state:
+        st.session_state[key] = False if key=="logged_in" else ""
 
 # ---------- LOGIN SYSTEM ----------
 if not st.session_state["logged_in"]:
     st.subheader("🔑 Login")
-    
-    # Login Form with unique keys
+
     username = st.text_input("Username", key="login_username")
     password = st.text_input("Password", type="password", key="login_password")
-    
-    if st.button("Login", key="login_btn"):
+
+    login_clicked = st.button("Login", key="login_btn")
+
+    if login_clicked:
         if login(username, password):
             st.success(f"Welcome {username} ({st.session_state['role']})!")
-            st.experimental_rerun()  # ✅ safe: only inside button click
+            # rerun after updating session_state
+            st.experimental_rerun()
         else:
             st.error("Invalid username or password")
 
 # ---------- AFTER LOGIN ----------
-else:
+if st.session_state["logged_in"]:
     st.success(f"Logged in as {st.session_state['username']} ({st.session_state['role']})")
-    
-    # Logout button with unique key
+
     if st.button("Logout", key="logout_btn"):
         logout()
         st.experimental_rerun()
+
+    if st.session_state["role"] == "admin":
+        admin_panel()
+        user_panel()
+        change_password()
+    elif st.session_state["role"] in ["user", "viewer"]:
+        user_panel()
+        change_password()
     
     # ---------- ADMIN PANEL ----------
     if st.session_state["role"] == "admin":
