@@ -280,29 +280,37 @@ snapshot = st.camera_input("Take Snapshot")
 # ---------- AUTO GPS LOCATION ----------
 st.markdown("### 📍 Auto GPS Location")
 
-gps_component = components.html("""
+gps_html = """
 <script>
 navigator.geolocation.getCurrentPosition(function(position) {
     const lat = position.coords.latitude;
     const lon = position.coords.longitude;
-    const value = lat + "," + lon;
-
-    window.parent.postMessage(
-        { type: "streamlit:setComponentValue", value: value },
-        "*"
-    );
+    const loc = lat + "," + lon;
+    const streamlitDoc = window.parent.document;
+    const input = streamlitDoc.querySelector('input[aria-label="gps_value"]');
+    if (input){
+        input.value = loc;
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+    }
 });
 </script>
-""", height=0)
+"""
 
-if gps_component:
-    latitude, longitude = gps_component.split(",")
+# Hidden input to store GPS
+st.text_input("gps_value", key="gps_value", label_visibility="collapsed")
+
+components.html(gps_html, height=0)
+
+# SAFE extraction
+gps_value = st.session_state.get("gps_value")
+
+if gps_value and "," in gps_value:
+    latitude, longitude = gps_value.split(",")
     latitude = float(latitude)
     longitude = float(longitude)
     st.success(f"📍 Location Captured: {latitude}, {longitude}")
-
-if not qr_code:
-    st.warning("QR not scanned")
+else:
+    latitude, longitude = None, None
     
 
 # ---------- Rack & Shelf ----------
