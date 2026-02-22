@@ -5,21 +5,100 @@ import os
 import sqlite3
 import hashlib
 
-# ---------- Simple Authentication ----------
+USERS_FILE = "users.json"
 
-def check_login(username, password):
-    users = {
-        "admin": hashlib.sha256("admin123".encode()).hexdigest(),
-        "arun": hashlib.sha256("inventory".encode()).hexdigest()
-    }
+# ---------- Utility Functions ----------
+def load_users():
+    if not os.path.exists(USERS_FILE):
+        # Create default admin if file doesn't exist
+        default_users = {
+            "admin": {"password": hashlib.sha256("admin123".encode()).hexdigest(), "role": "admin"}
+        }
+        with open(USERS_FILE, "w") as f:
+            json.dump(default_users, f)
+        return default_users
+    with open(USERS_FILE, "r") as f:
+        return json.load(f)
 
+def save_users(users):
+    with open(USERS_FILE, "w") as f:
+        json.dump(users, f)
+
+# ---------- Login ----------
+def login(username, password):
+    users = load_users()
     if username in users:
-        return users[username] == hashlib.sha256(password.encode()).hexdigest()
+        hashed = hashlib.sha256(password.encode()).hexdigest()
+        if hashed == users[username]["password"]:
+            st.session_state["logged_in"] = True
+            st.session_state["username"] = username
+            st.session_state["role"] = users[username]["role"]
+            return True
     return False
 
+# ---------- Logout ----------
+def logout():
+    for key in ["logged_in", "username", "role"]:
+        if key in st.session_state:
+            del st.session_state[key]
+
+# ---------admin section create new users -------------
+
+def admin_panel():
+    st.subheader("🛠 Admin Panel: Create New User")
+    users = load_users()
+    
+    new_username = st.text_input("New Username")
+    default_password = st.text_input("Default Password", "user123")
+    role = st.selectbox("Role", ["user", "viewer"])
+    
+    if st.button("Create User"):
+        if new_username in users:
+            st.error("User already exists!")
+        elif new_username.strip() == "":
+            st.error("Username cannot be empty!")
+        else:
+            hashed = hashlib.sha256(default_password.encode()).hexdigest()
+            users[new_username] = {"password": hashed, "role": role}
+            save_users(users)
+            st.success(f"User '{new_username}' created with default password '{default_password}'")
+
+# -------------User Section: Change Password-----------
+
+def change_password():
+    st.subheader("🔑 Change Password")
+    users = load_users()
+    
+    old_pass = st.text_input("Current Password", type="password")
+    new_pass = st.text_input("New Password", type="password")
+    
+    if st.button("Update Password"):
+        hashed_old = hashlib.sha256(old_pass.encode()).hexdigest()
+        username = st.session_state["username"]
+        if hashed_old != users[username]["password"]:
+            st.error("Current password incorrect")
+        else:
+            users[username]["password"] = hashlib.sha256(new_pass.encode()).hexdigest()
+            save_users(users)
+            st.success("Password updated successfully!")
 
 
-# File paths
+#--------User Rights: Entry Data / Single Code Delete--------
+
+def user_panel():
+    st.subheader("📊 User Panel")
+    
+    st.write("You can enter data or delete single codes here.")
+    code = st.text_input("Enter Code")
+    
+    if st.button("Submit Code"):
+        st.success(f"Code '{code}' submitted successfully")
+    
+    del_code = st.text_input("Delete Code")
+    if st.button("Delete Code"):
+        st.warning(f"Code '{del_code}' deleted (single delete)")
+
+# ---------File paths-------
 STOCK_FILE = DB_FILE = "inventory.db"
 MASTER_FILE = "Item_master.xlsx"
 
@@ -165,24 +244,38 @@ initialize_database()
 # ---------- Login System ----------
 
 if "logged_in" not in st.session_state:
-    st.session_state.logged_in = False
+    st.session_state["logged_in"] = False
 
-if not st.session_state.logged_in:
-    st.title("🔐 Login Required")
-
+# ---------- LOGIN SCREEN ----------
+if not st.session_state["logged_in"]:
+    st.subheader("🔑 Login")
     username = st.text_input("Username")
     password = st.text_input("Password", type="password")
-
     if st.button("Login"):
-        if check_login(username, password):
-            st.session_state.logged_in = True
-            st.success("Login Successful!")
-            st.rerun()
+        if login(username, password):
+            st.success(f"Welcome {username} ({st.session_state['role']})!")
+            st.experimental_rerun()
         else:
-            st.error("Invalid Username or Password")
+            st.error("Invalid username or password")
 
-    st.stop()
-
+# ---------- AFTER LOGIN ----------
+else:
+    st.success(f"Logged in as {st.session_state['username']} ({st.session_state['role']})")
+    
+    if st.button("Logout"):
+        logout()
+        st.experimental_rerun()
+    
+    # ---------- ADMIN PANEL ----------
+    if st.session_state["role"] == "admin":
+        admin_panel()       # Create new users
+        user_panel()        # Data entry & single delete
+        change_password()   # Change own password
+    
+    # ---------- REGULAR USER PANEL ----------
+    elif st.session_state["role"] in ["user", "viewer"]:
+        user_panel()        # Data entry & single delete
+        change_password()   # Change own password
 
 st.title("📦 Stock Entry System")
 
