@@ -276,31 +276,54 @@ st.text_input("gps_value", key="gps_value", label_visibility="collapsed")
 gps_html = """
 <script>
 function getLocation() {
-    navigator.geolocation.getCurrentPosition(function(position) {
-        const lat = position.coords.latitude;
-        const lon = position.coords.longitude;
-        const loc = lat + "," + lon;
-        const streamlitDoc = window.parent.document;
-        const input = streamlitDoc.querySelector('input[aria-label="gps_value"]');
-        if (input){
-            input.value = loc;
-            input.dispatchEvent(new Event('input', { bubbles: true }));
+
+    if (!navigator.geolocation) {
+        alert("Geolocation is not supported by this browser.");
+        return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+        function(position) {
+
+            const lat = position.coords.latitude;
+            const lon = position.coords.longitude;
+            const loc = lat + "," + lon;
+
+            const streamlitDoc = window.parent.document;
+            const input = streamlitDoc.querySelector('input[aria-label="gps_value"]');
+
+            if (input){
+                input.value = loc;
+                input.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+
+            alert("Location Captured Successfully");
+
+        },
+        function(error) {
+            alert("Error capturing location: " + error.message);
+        },
+        {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 0
         }
-    });
+    );
 }
 </script>
 
 <button onclick="getLocation()" style="
-padding:8px 12px;
-background-color:#4CAF50;
+padding:10px 14px;
+background-color:#007BFF;
 color:white;
 border:none;
-border-radius:5px;">
-📍 Capture Location
+border-radius:6px;
+font-size:16px;">
+📍 Capture GPS Location
 </button>
 """
 
-components.html(gps_html, height=70)
+components.html(gps_html, height=90)
 
 gps_value = st.session_state.get("gps_value")
 
@@ -469,3 +492,43 @@ if not stock_df.empty:
 
 else:
     st.info("No stock entries available.")
+
+st.markdown("### 🗑 Bulk Delete (By ID Range)")
+
+min_id = int(stock_df["id"].min())
+max_id = int(stock_df["id"].max())
+
+col1, col2 = st.columns(2)
+
+with col1:
+    start_id = st.number_input(
+        "From ID",
+        min_value=min_id,
+        max_value=max_id,
+        step=1
+    )
+
+with col2:
+    end_id = st.number_input(
+        "To ID",
+        min_value=min_id,
+        max_value=max_id,
+        step=1
+    )
+
+if st.button("Delete Range"):
+
+    if start_id > end_id:
+        st.error("Start ID cannot be greater than End ID")
+    else:
+        conn = sqlite3.connect(DB_FILE)
+        cursor = conn.cursor()
+        cursor.execute(
+            "DELETE FROM inventory WHERE id BETWEEN ? AND ?",
+            (start_id, end_id)
+        )
+        conn.commit()
+        conn.close()
+
+        st.success(f"Deleted records from ID {start_id} to {end_id}")
+        st.rerun()
