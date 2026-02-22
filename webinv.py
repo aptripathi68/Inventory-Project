@@ -495,40 +495,45 @@ else:
 
 st.markdown("### 🗑 Bulk Delete (By ID Range)")
 
-min_id = int(stock_df["id"].min())
-max_id = int(stock_df["id"].max())
+if not stock_df.empty:
 
-col1, col2 = st.columns(2)
+    min_id = int(stock_df["id"].min())
+    max_id = int(stock_df["id"].max())
 
-with col1:
-    start_id = st.number_input(
-        "From ID",
-        min_value=min_id,
-        max_value=max_id,
-        step=1
-    )
+    col1, col2 = st.columns(2)
 
-with col2:
-    end_id = st.number_input(
-        "To ID",
-        min_value=min_id,
-        max_value=max_id,
-        step=1
-    )
-
-if st.button("Delete Range"):
-
-    if start_id > end_id:
-        st.error("Start ID cannot be greater than End ID")
-    else:
-        conn = sqlite3.connect(DB_FILE)
-        cursor = conn.cursor()
-        cursor.execute(
-            "DELETE FROM inventory WHERE id BETWEEN ? AND ?",
-            (start_id, end_id)
+    with col1:
+        start_id = st.number_input(
+            "From ID",
+            min_value=min_id,
+            max_value=max_id,
+            step=1
         )
-        conn.commit()
-        conn.close()
 
-        st.success(f"Deleted records from ID {start_id} to {end_id}")
-        st.rerun()
+    with col2:
+        end_id = st.number_input(
+            "To ID",
+            min_value=min_id,
+            max_value=max_id,
+            step=1
+        )
+
+    if st.button("Delete Range"):
+
+        if start_id > end_id:
+            st.error("Start ID cannot be greater than End ID")
+        else:
+            conn = sqlite3.connect(DB_FILE)
+            cursor = conn.cursor()
+            cursor.execute(
+                "DELETE FROM inventory WHERE id BETWEEN ? AND ?",
+                (start_id, end_id)
+            )
+            conn.commit()
+            conn.close()
+
+            st.success(f"Deleted records from ID {start_id} to {end_id}")
+            st.rerun()
+
+else:
+    st.info("No records available for deletion.")
