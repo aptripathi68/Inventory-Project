@@ -1,112 +1,31 @@
+#THE BELOW CODE SUCCESSFUL CAPTURES INVENTORY INPUT, GPS LOCATION, QR CODE, SNAPSHOT 
+
+
+
+
+
 import streamlit as st
 import pandas as pd
 import csv
 import os
 import sqlite3
 import hashlib
-import json
 
-# ---------- Session State Initialization ----------
-for key in ["logged_in", "username", "role"]:
-    if key not in st.session_state:
-        st.session_state[key] = False if key == "logged_in" else ""
+# ---------- Simple Authentication ----------
 
-# ---------- User Management ----------
-def load_users():
-    if not os.path.exists(USERS_FILE):
-        default_users = {
-            "admin": {
-                "password": hashlib.sha256("admin123".encode()).hexdigest(),
-                "role": "admin"
-            }
-        }
-        with open(USERS_FILE, "w") as f:
-            json.dump(default_users, f)
-        return default_users
-    with open(USERS_FILE, "r") as f:
-        return json.load(f)
+def check_login(username, password):
+    users = {
+        "admin": hashlib.sha256("admin123".encode()).hexdigest(),
+        "arun": hashlib.sha256("inventory".encode()).hexdigest()
+    }
 
-def save_users(users):
-    with open(USERS_FILE, "w") as f:
-        json.dump(users, f)
-
-def login(username, password):
-    users = load_users()
     if username in users:
-        hashed = hashlib.sha256(password.encode()).hexdigest()
-        if hashed == users[username]["password"]:
-            st.session_state["logged_in"] = True
-            st.session_state["username"] = username
-            st.session_state["role"] = users[username]["role"]
-            return True
+        return users[username] == hashlib.sha256(password.encode()).hexdigest()
     return False
 
-def logout():
-    for key in ["logged_in", "username", "role"]:
-        if key in st.session_state:
-            del st.session_state[key]
-    st.session_state["logged_in"] = False
-
-# ---------- LOGIN SECTION ----------
-if not st.session_state["logged_in"]:
-    st.subheader("🔑 Login")
-    username = st.text_input("Username", key="login_username")
-    password = st.text_input("Password", type="password", key="login_password")
-    
-    if st.button("Login", key="login_btn"):
-        if login(username, password):
-            st.experimental_rerun()  # ✅ safe inside button click
-        else:
-            st.error("Invalid username or password")
-
-# ---------- AFTER LOGIN ----------
-if st.session_state["logged_in"]:
-    st.success(f"Logged in as {st.session_state['username']} ({st.session_state['role']})")
-    
-    if st.button("Logout", key="logout_btn"):
-        logout()
-        st.experimental_rerun()
-    
-    # ---------- ADMIN PANEL ----------
-    if st.session_state["role"] == "admin":
-        st.subheader("🛠 Admin Panel")
-        users = load_users()
-        new_user = st.text_input("New Username", key="new_user_admin")
-        new_pass = st.text_input("Default Password", value="user123", key="new_pass_admin")
-        role = st.selectbox("Role", ["user","viewer"], key="new_role_admin")
-        if st.button("Create User", key="create_user_btn"):
-            if new_user in users:
-                st.error("User already exists!")
-            elif new_user.strip() == "":
-                st.error("Username cannot be empty!")
-            else:
-                users[new_user] = {"password": hashlib.sha256(new_pass.encode()).hexdigest(), "role": role}
-                save_users(users)
-                st.success(f"User '{new_user}' created successfully!")
-
-    # ---------- USER PANEL ----------
-    st.subheader("📊 User Panel")
-    code_input = st.text_input("Enter Code", key="code_input")
-    if st.button("Submit Code", key="submit_code_btn"):
-        st.success(f"Code '{code_input}' submitted successfully")
 
 
-#--------User Rights: Entry Data / Single Code Delete--------
-
-def user_panel():
-    st.subheader("📊 User Panel")
-    
-    st.write("You can enter data or delete single codes here.")
-    code = st.text_input("Enter Code")
-    
-    if st.button("Submit Code"):
-        st.success(f"Code '{code}' submitted successfully")
-    
-    del_code = st.text_input("Delete Code")
-    if st.button("Delete Code"):
-        st.warning(f"Code '{del_code}' deleted (single delete)")
-
-# ---------File paths-------
+# File paths
 STOCK_FILE = DB_FILE = "inventory.db"
 MASTER_FILE = "Item_master.xlsx"
 
@@ -247,66 +166,33 @@ def delete_stock_row(row_id):
 # Database initialization
 initialize_database()
 
-# ---------- Safe Login Section ----------
-import streamlit as st
+# ---------- Streamlit Interface ----------
 
-# Initialize session state
-for key in ["logged_in", "username", "role", "qr_value", "gps_value"]:
-    if key not in st.session_state:
-        st.session_state[key] = False if key == "logged_in" else ""
+# ---------- Login System ----------
 
-# ---------- LOGIN FORM ----------
-if not st.session_state["logged_in"]:
-    st.subheader("🔑 Login")
-    
-    username = st.text_input("Username", key="login_username")
-    password = st.text_input("Password", type="password", key="login_password")
-    
-    if st.button("Login", key="login_btn"):
-        if login(username, password):
-            # Update session state before rerun
-            st.session_state["logged_in"] = True
-            st.session_state["username"] = username
-            st.session_state["role"] = st.session_state.get("role", "user")
-            
-            # ✅ Safe rerun
-            st.experimental_rerun()
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
+
+if not st.session_state.logged_in:
+    st.title("🔐 Login Required")
+
+    username = st.text_input("Username")
+    password = st.text_input("Password", type="password")
+
+    if st.button("Login"):
+        if check_login(username, password):
+            st.session_state.logged_in = True
+            st.success("Login Successful!")
+            st.rerun()
         else:
-            st.error("Invalid username or password")
+            st.error("Invalid Username or Password")
 
-# ---------- POST LOGIN ----------
-if st.session_state["logged_in"]:
-    st.success(f"Logged in as {st.session_state['username']} ({st.session_state['role']})")
-    
-    if st.button("Logout", key="logout_btn"):
-        logout()
-        st.experimental_rerun()
-    
-    # Admin / User Panels
-    if st.session_state["role"] == "admin":
-        admin_panel()
-        user_panel()
-        change_password()
-    elif st.session_state["role"] in ["user", "viewer"]:
-        user_panel()
-        change_password()
+    st.stop()
 
-    
-    # ---------- ADMIN PANEL ----------
-    if st.session_state["role"] == "admin":
-        admin_panel()       # Create new users
-        user_panel()        # Data entry & single delete
-        change_password()   # Change own password
-    
-    # ---------- REGULAR USER PANEL ----------
-    elif st.session_state["role"] in ["user", "viewer"]:
-        user_panel()        # Data entry & single delete
-        change_password()   # Change own password
 
-# ---------- Stock Entry Section ----------
 st.title("📦 Stock Entry System")
 
-# Initialize stock database
+# Initialize stock file
 initialize_database()
 
 # Load master data
@@ -660,3 +546,4 @@ if not stock_df.empty:
 
 else:
     st.info("No records available for deletion.")
+
