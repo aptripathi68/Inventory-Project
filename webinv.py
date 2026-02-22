@@ -241,9 +241,9 @@ def delete_stock_row(row_id):
 initialize_database()
 
 # ---------- Streamlit Interface ----------
+import streamlit as st
 
-# ---------- Login System ----------
-
+# ---------- Initialize Session State ----------
 if "logged_in" not in st.session_state:
     st.session_state["logged_in"] = False
 if "username" not in st.session_state:
@@ -251,25 +251,27 @@ if "username" not in st.session_state:
 if "role" not in st.session_state:
     st.session_state["role"] = ""
 
-
-# ---------- LOGIN SCREEN ----------
-# Login Form
-username = st.text_input("Username", key="login_username")
-password = st.text_input("Password", type="password", key="login_password")
-login_clicked = st.button("Login", key="login_btn")
-
-if login_clicked:
-    if login(username, password):
-        st.success(f"Welcome {username}!")
-        st.experimental_rerun()  # ✅ safe, only inside button click
-    else:
-        st.error("Invalid username or password")
+# ---------- LOGIN SYSTEM ----------
+if not st.session_state["logged_in"]:
+    st.subheader("🔑 Login")
+    
+    # Login Form with unique keys
+    username = st.text_input("Username", key="login_username")
+    password = st.text_input("Password", type="password", key="login_password")
+    
+    if st.button("Login", key="login_btn"):
+        if login(username, password):
+            st.success(f"Welcome {username} ({st.session_state['role']})!")
+            st.experimental_rerun()  # ✅ safe: only inside button click
+        else:
+            st.error("Invalid username or password")
 
 # ---------- AFTER LOGIN ----------
 else:
     st.success(f"Logged in as {st.session_state['username']} ({st.session_state['role']})")
     
-    if st.button("Logout"):
+    # Logout button with unique key
+    if st.button("Logout", key="logout_btn"):
         logout()
         st.experimental_rerun()
     
@@ -284,9 +286,10 @@ else:
         user_panel()        # Data entry & single delete
         change_password()   # Change own password
 
+# ---------- Stock Entry Section ----------
 st.title("📦 Stock Entry System")
 
-# Initialize stock file
+# Initialize stock database
 initialize_database()
 
 # Load master data
