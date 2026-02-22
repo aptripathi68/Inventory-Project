@@ -218,9 +218,9 @@ selected_item_index = st.selectbox(
 selected_row = filtered_grade.loc[selected_item_index]
 
 # ---------- Dimension Fields ----------
-thickness = st.number_input("thickness", min_value=0.0, step=0.01)
-length = st.number_input("length (Meters)", min_value=0.0, step=0.01)
-width = st.number_input("width (Meters)", min_value=0.0, step=0.01)
+thickness = st.number_input("Thickness", value=None, placeholder="Enter thickness")
+length = st.number_input("Length (Meters)", value=None, placeholder="Enter length")
+width = st.number_input("Width (Meters)", value=None, placeholder="Enter width")
 
 
 # ---------- PROFESSIONAL QR SCANNER ----------
@@ -351,8 +351,8 @@ source = st.selectbox(
     "Select Source",
     source_options
 )
-quantity = st.number_input("Enter Quantity", min_value=0.0, step=0.01)
-price = st.number_input("Enter Price per unit", min_value=0.0, step=0.01)
+quantity = st.number_input("Enter Quantity", value=None, placeholder="Enter quantity")
+price = st.number_input("Enter Price per unit", value=None, placeholder="Enter price")
 
 # Add stock button
 import os
@@ -365,22 +365,40 @@ if st.button("➕ Add Stock"):
 
         snapshot_path = None
 
-        # Create images folder if not exists
-        if not os.path.exists("images"):
-            os.makedirs("images")
+# Create images folder if not exists
+if not os.path.exists("images"):
+    os.makedirs("images")
 
-        # Save snapshot only if taken
-        if snapshot is not None:
-            if qr_code:
-                safe_qr = qr_code.replace("/", "_").replace(" ", "_")
-                snapshot_path = f"images/{safe_qr}.jpg"
-            else:
-                from datetime import datetime
-                timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
-                snapshot_path = f"images/photo_{timestamp}.jpg"
+# Save snapshot only if taken
+if snapshot is not None:
 
-            with open(snapshot_path, "wb") as f:
-                f.write(snapshot.getbuffer())
+    from datetime import datetime
+
+    # Get QR value safely
+    qr_value = st.session_state.get("qr_value")
+
+    # If QR exists and is valid string → use it as filename
+    if qr_value and isinstance(qr_value, str):
+
+        # Clean filename (remove unsafe characters)
+        safe_qr = (
+            qr_value.strip()
+            .replace("/", "_")
+            .replace("\\", "_")
+            .replace(" ", "_")
+            .replace(":", "_")
+        )
+
+        snapshot_path = f"images/{safe_qr}.jpg"
+
+    else:
+        # If no QR → use timestamp
+        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+        snapshot_path = f"images/photo_{timestamp}.jpg"
+
+    # Save image
+    with open(snapshot_path, "wb") as f:
+        f.write(snapshot.getbuffer())
 
         append_stock(
             selected_row,
