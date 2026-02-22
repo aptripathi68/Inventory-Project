@@ -253,16 +253,17 @@ if "role" not in st.session_state:
 
 
 # ---------- LOGIN SCREEN ----------
-if not st.session_state["logged_in"]:
-    st.subheader("🔑 Login")
-    username = st.text_input("Username")
-    password = st.text_input("Password", type="password")
-    if st.button("Login"):
-        if login(username, password):
-            st.success(f"Welcome {username} ({st.session_state['role']})!")
-            st.experimental_rerun()
-        else:
-            st.error("Invalid username or password")
+# Login Form
+username = st.text_input("Username", key="login_username")
+password = st.text_input("Password", type="password", key="login_password")
+login_clicked = st.button("Login", key="login_btn")
+
+if login_clicked:
+    if login(username, password):
+        st.success(f"Welcome {username}!")
+        st.experimental_rerun()  # ✅ safe, only inside button click
+    else:
+        st.error("Invalid username or password")
 
 # ---------- AFTER LOGIN ----------
 else:
