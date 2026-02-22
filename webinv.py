@@ -222,97 +222,94 @@ thickness = st.number_input("thickness", min_value=0.0, step=0.01)
 length = st.number_input("length (Meters)", min_value=0.0, step=0.01)
 width = st.number_input("width (Meters)", min_value=0.0, step=0.01)
 
-import streamlit.components.v1 as components
 
 # ---------- PROFESSIONAL QR SCANNER ----------
 import streamlit.components.v1 as components
 
 st.markdown("### 📷 Scan QR Code")
 
-qr_component = components.html("""
+# Hidden field to store scanned value
+st.text_input("qr_value", key="qr_value", label_visibility="collapsed")
+
+qr_html = """
 <script src="https://unpkg.com/html5-qrcode"></script>
 
 <div id="reader" style="width:300px;"></div>
 
 <script>
-function startScanner() {
-
-    Html5Qrcode.getCameras().then(devices => {
-
-        if (devices && devices.length) {
-
-            // Try to find back camera
-            let backCamera = devices.find(device =>
-                device.label.toLowerCase().includes('back') ||
-                device.label.toLowerCase().includes('rear')
-            );
-
-            let cameraId = backCamera ? backCamera.id : devices[0].id;
-
-            const html5QrCode = new Html5Qrcode("reader");
-
-            html5QrCode.start(
-                cameraId,
-                { fps: 10, qrbox: 250 },
-                (decodedText) => {
-                    window.parent.postMessage(
-                        { type: "streamlit:setComponentValue", value: decodedText },
-                        "*"
-                    );
-                }
-            );
-        }
-    }).catch(err => {
-        console.error(err);
-    });
-}
-
-startScanner();
-</script>
-""", height=350)
-
-qr_code = qr_component
-
-# ---------- SNAPSHOT ----------
-st.markdown("### 📸 Item Snapshot (Optional)")
-snapshot = st.camera_input("Take Snapshot")
-
-# ---------- AUTO GPS LOCATION ----------
-st.markdown("### 📍 Auto GPS Location")
-
-gps_html = """
-<script>
-navigator.geolocation.getCurrentPosition(function(position) {
-    const lat = position.coords.latitude;
-    const lon = position.coords.longitude;
-    const loc = lat + "," + lon;
+function onScanSuccess(decodedText) {
     const streamlitDoc = window.parent.document;
-    const input = streamlitDoc.querySelector('input[aria-label="gps_value"]');
+    const input = streamlitDoc.querySelector('input[aria-label="qr_value"]');
     if (input){
-        input.value = loc;
+        input.value = decodedText;
         input.dispatchEvent(new Event('input', { bubbles: true }));
     }
-});
+}
+
+let html5QrcodeScanner = new Html5QrcodeScanner(
+    "reader",
+    { 
+        fps: 10,
+        qrbox: 250,
+        supportedScanTypes: [Html5QrcodeScanType.SCAN_TYPE_CAMERA],
+        videoConstraints: {
+            facingMode: { exact: "environment" }
+        }
+    }
+);
+
+html5QrcodeScanner.render(onScanSuccess);
 </script>
 """
 
-# Hidden input to store GPS
+components.html(qr_html, height=400)
+
+qr_code = st.session_state.get("qr_value")
+    
+
+# ---------- GPS Location ----------
+
+st.markdown("### 📍 Auto GPS Location")
+
 st.text_input("gps_value", key="gps_value", label_visibility="collapsed")
 
-components.html(gps_html, height=0)
+gps_html = """
+<script>
+function getLocation() {
+    navigator.geolocation.getCurrentPosition(function(position) {
+        const lat = position.coords.latitude;
+        const lon = position.coords.longitude;
+        const loc = lat + "," + lon;
+        const streamlitDoc = window.parent.document;
+        const input = streamlitDoc.querySelector('input[aria-label="gps_value"]');
+        if (input){
+            input.value = loc;
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+    });
+}
+</script>
 
-# SAFE extraction
+<button onclick="getLocation()" style="
+padding:8px 12px;
+background-color:#4CAF50;
+color:white;
+border:none;
+border-radius:5px;">
+📍 Capture Location
+</button>
+"""
+
+components.html(gps_html, height=70)
+
 gps_value = st.session_state.get("gps_value")
 
 if gps_value and "," in gps_value:
-    latitude, longitude = gps_value.split(",")
-    latitude = float(latitude)
-    longitude = float(longitude)
-    st.success(f"📍 Location Captured: {latitude}, {longitude}")
+    latitude, longitude = map(float, gps_value.split(","))
+    st.success(f"📍 Location: {latitude}, {longitude}")
 else:
     latitude, longitude = None, None
     
-
 # ---------- Rack & Shelf ----------
 rack = st.number_input("Rack Number", min_value=0, step=1)
 shelf = st.number_input("Shelf Number", min_value=0, step=1)
