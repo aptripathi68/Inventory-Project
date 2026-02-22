@@ -246,6 +246,24 @@ initialize_database()
 
 if "logged_in" not in st.session_state:
     st.session_state["logged_in"] = False
+if "username" not in st.session_state:
+    st.session_state["username"] = ""
+if "role" not in st.session_state:
+    st.session_state["role"] = ""
+
+if not st.session_state["logged_in"]:
+    st.subheader("🔑 Login")
+    username = st.text_input("Username")
+    password = st.text_input("Password", type="password")
+    
+    # LOGIN BUTTON HANDLER
+    login_clicked = st.button("Login")
+    if login_clicked:
+        if login(username, password):
+            st.success(f"Welcome {username}!")
+            st.experimental_rerun()  # safe rerun after login
+        else:
+            st.error("Invalid username or password")
 
 # ---------- LOGIN SCREEN ----------
 if not st.session_state["logged_in"]:
