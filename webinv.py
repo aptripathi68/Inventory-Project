@@ -4,6 +4,7 @@ import csv
 import os
 import sqlite3
 import hashlib
+import json
 
 USERS_FILE = "users.json"
 
