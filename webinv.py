@@ -240,27 +240,31 @@ def delete_stock_row(row_id):
 # Database initialization
 initialize_database()
 
-# ---------- Streamlit Interface ----------
+# ---------- Streamlit Login Section ----------
 import streamlit as st
 
-# ---------- Initialize Session State ----------
-for key in ["logged_in", "username", "role"]:
+# Initialize session state
+for key in ["logged_in", "username", "role", "qr_value", "gps_value"]:
     if key not in st.session_state:
-        st.session_state[key] = False if key=="logged_in" else ""
+        st.session_state[key] = False if key == "logged_in" else ""
 
-# ---------- LOGIN SYSTEM ----------
+# ---------- LOGIN FORM ----------
 if not st.session_state["logged_in"]:
     st.subheader("🔑 Login")
-
+    
     username = st.text_input("Username", key="login_username")
     password = st.text_input("Password", type="password", key="login_password")
-
+    
     login_clicked = st.button("Login", key="login_btn")
-
+    
     if login_clicked:
         if login(username, password):
-            st.success(f"Welcome {username} ({st.session_state['role']})!")
-            # rerun after updating session_state
+            # ✅ update session_state first
+            st.session_state["logged_in"] = True
+            st.session_state["username"] = username
+            st.session_state["role"] = st.session_state.get("role", "user")
+            
+            # ✅ rerun safely inside button click
             st.experimental_rerun()
         else:
             st.error("Invalid username or password")
@@ -268,15 +272,18 @@ if not st.session_state["logged_in"]:
 # ---------- AFTER LOGIN ----------
 if st.session_state["logged_in"]:
     st.success(f"Logged in as {st.session_state['username']} ({st.session_state['role']})")
-
+    
     if st.button("Logout", key="logout_btn"):
         logout()
         st.experimental_rerun()
-
+    
+    # Admin panel
     if st.session_state["role"] == "admin":
         admin_panel()
         user_panel()
         change_password()
+    
+    # Regular user panel
     elif st.session_state["role"] in ["user", "viewer"]:
         user_panel()
         change_password()
