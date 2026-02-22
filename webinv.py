@@ -448,8 +448,8 @@ if st.button("➕ Add Stock"):
         st.success("✅ Stock entry successful!")
 
         # Reset QR & GPS to prevent repeat
-        st.session_state["qr_value"] = ""
-        st.session_state["gps_value"] = ""
+        st.session_state.pop("qr_value", None)
+        st.session_state.pop("gps_value", None)
 
         st.rerun()
 
