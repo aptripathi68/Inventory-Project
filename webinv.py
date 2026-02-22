@@ -6,12 +6,20 @@ import sqlite3
 import hashlib
 import json
 
-USERS_FILE = "users.json"
+# ---------- Session State Initialization ----------
+for key in ["logged_in", "username", "role"]:
+    if key not in st.session_state:
+        st.session_state[key] = False if key == "logged_in" else ""
 
 # ---------- User Management ----------
 def load_users():
     if not os.path.exists(USERS_FILE):
-        default_users = {"admin": {"password": hashlib.sha256("admin123".encode()).hexdigest(), "role": "admin"}}
+        default_users = {
+            "admin": {
+                "password": hashlib.sha256("admin123".encode()).hexdigest(),
+                "role": "admin"
+            }
+        }
         with open(USERS_FILE, "w") as f:
             json.dump(default_users, f)
         return default_users
@@ -39,14 +47,15 @@ def logout():
             del st.session_state[key]
     st.session_state["logged_in"] = False
 
-# ---------- LOGIN FORM ----------
+# ---------- LOGIN SECTION ----------
 if not st.session_state["logged_in"]:
     st.subheader("🔑 Login")
-    username = st.text_input("Username", key="login_username_main")
-    password = st.text_input("Password", type="password", key="login_password_main")
-    if st.button("Login", key="login_btn_main"):
+    username = st.text_input("Username", key="login_username")
+    password = st.text_input("Password", type="password", key="login_password")
+    
+    if st.button("Login", key="login_btn"):
         if login(username, password):
-            st.experimental_rerun()
+            st.experimental_rerun()  # ✅ safe inside button click
         else:
             st.error("Invalid username or password")
 
@@ -54,55 +63,32 @@ if not st.session_state["logged_in"]:
 if st.session_state["logged_in"]:
     st.success(f"Logged in as {st.session_state['username']} ({st.session_state['role']})")
     
-    if st.button("Logout", key="logout_btn_main"):
+    if st.button("Logout", key="logout_btn"):
         logout()
         st.experimental_rerun()
-
-# ---------- Logout ----------
-def logout():
-    for key in ["logged_in", "username", "role"]:
-        if key in st.session_state:
-            del st.session_state[key]
-
-# ---------admin section create new users -------------
-
-def admin_panel():
-    st.subheader("🛠 Admin Panel: Create New User")
-    users = load_users()
     
-    new_username = st.text_input("New Username")
-    default_password = st.text_input("Default Password", "user123")
-    role = st.selectbox("Role", ["user", "viewer"])
-    
-    if st.button("Create User"):
-        if new_username in users:
-            st.error("User already exists!")
-        elif new_username.strip() == "":
-            st.error("Username cannot be empty!")
-        else:
-            hashed = hashlib.sha256(default_password.encode()).hexdigest()
-            users[new_username] = {"password": hashed, "role": role}
-            save_users(users)
-            st.success(f"User '{new_username}' created with default password '{default_password}'")
+    # ---------- ADMIN PANEL ----------
+    if st.session_state["role"] == "admin":
+        st.subheader("🛠 Admin Panel")
+        users = load_users()
+        new_user = st.text_input("New Username", key="new_user_admin")
+        new_pass = st.text_input("Default Password", value="user123", key="new_pass_admin")
+        role = st.selectbox("Role", ["user","viewer"], key="new_role_admin")
+        if st.button("Create User", key="create_user_btn"):
+            if new_user in users:
+                st.error("User already exists!")
+            elif new_user.strip() == "":
+                st.error("Username cannot be empty!")
+            else:
+                users[new_user] = {"password": hashlib.sha256(new_pass.encode()).hexdigest(), "role": role}
+                save_users(users)
+                st.success(f"User '{new_user}' created successfully!")
 
-# -------------User Section: Change Password-----------
-
-def change_password():
-    st.subheader("🔑 Change Password")
-    users = load_users()
-    
-    old_pass = st.text_input("Current Password", type="password")
-    new_pass = st.text_input("New Password", type="password")
-    
-    if st.button("Update Password"):
-        hashed_old = hashlib.sha256(old_pass.encode()).hexdigest()
-        username = st.session_state["username"]
-        if hashed_old != users[username]["password"]:
-            st.error("Current password incorrect")
-        else:
-            users[username]["password"] = hashlib.sha256(new_pass.encode()).hexdigest()
-            save_users(users)
-            st.success("Password updated successfully!")
+    # ---------- USER PANEL ----------
+    st.subheader("📊 User Panel")
+    code_input = st.text_input("Enter Code", key="code_input")
+    if st.button("Submit Code", key="submit_code_btn"):
+        st.success(f"Code '{code_input}' submitted successfully")
 
 
 #--------User Rights: Entry Data / Single Code Delete--------
