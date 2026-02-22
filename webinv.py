@@ -8,13 +8,10 @@ import json
 
 USERS_FILE = "users.json"
 
-# ---------- Utility Functions ----------
+# ---------- User Management ----------
 def load_users():
     if not os.path.exists(USERS_FILE):
-        # Create default admin if file doesn't exist
-        default_users = {
-            "admin": {"password": hashlib.sha256("admin123".encode()).hexdigest(), "role": "admin"}
-        }
+        default_users = {"admin": {"password": hashlib.sha256("admin123".encode()).hexdigest(), "role": "admin"}}
         with open(USERS_FILE, "w") as f:
             json.dump(default_users, f)
         return default_users
@@ -25,7 +22,6 @@ def save_users(users):
     with open(USERS_FILE, "w") as f:
         json.dump(users, f)
 
-# ---------- Login ----------
 def login(username, password):
     users = load_users()
     if username in users:
@@ -36,6 +32,31 @@ def login(username, password):
             st.session_state["role"] = users[username]["role"]
             return True
     return False
+
+def logout():
+    for key in ["logged_in", "username", "role"]:
+        if key in st.session_state:
+            del st.session_state[key]
+    st.session_state["logged_in"] = False
+
+# ---------- LOGIN FORM ----------
+if not st.session_state["logged_in"]:
+    st.subheader("🔑 Login")
+    username = st.text_input("Username", key="login_username_main")
+    password = st.text_input("Password", type="password", key="login_password_main")
+    if st.button("Login", key="login_btn_main"):
+        if login(username, password):
+            st.experimental_rerun()
+        else:
+            st.error("Invalid username or password")
+
+# ---------- AFTER LOGIN ----------
+if st.session_state["logged_in"]:
+    st.success(f"Logged in as {st.session_state['username']} ({st.session_state['role']})")
+    
+    if st.button("Logout", key="logout_btn_main"):
+        logout()
+        st.experimental_rerun()
 
 # ---------- Logout ----------
 def logout():
@@ -246,7 +267,7 @@ import streamlit as st
 # Initialize session state
 for key in ["logged_in", "username", "role", "qr_value", "gps_value"]:
     if key not in st.session_state:
-        st.session_state[key] = False if key=="logged_in" else ""
+        st.session_state[key] = False if key == "logged_in" else ""
 
 # ---------- LOGIN FORM ----------
 if not st.session_state["logged_in"]:
