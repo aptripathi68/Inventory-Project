@@ -1,4 +1,6 @@
 streamlit
 pandas
 openpyxl
-pillow
+pyzbar
+Pillow
+streamlit-geolocation 
