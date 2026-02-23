@@ -1,6 +1,4 @@
 #THE BELOW CODE SUCCESSFUL CAPTURES INVENTORY INPUT, GPS LOCATION, QR CODE, SNAPSHOT 
-AND
-Creation of multiple users possible
 
 
 
@@ -13,69 +11,25 @@ import os
 import sqlite3
 import hashlib
 
-# ---------- Multi level  Authentication ----------
+# ---------- Simple Authentication ----------
 
 def check_login(username, password):
-    conn = sqlite3.connect(DB_FILE)
-    cursor = conn.cursor()
+    users = {
+        "admin": hashlib.sha256("admin123".encode()).hexdigest(),
+        "arun": hashlib.sha256("inventory".encode()).hexdigest()
+    }
 
-    hashed_password = hashlib.sha256(password.encode()).hexdigest()
+    if username in users:
+        return users[username] == hashlib.sha256(password.encode()).hexdigest()
+    return False
 
-    cursor.execute("""
-        SELECT role, must_change_password 
-        FROM users 
-        WHERE username = ? AND password = ?
-    """, (username, hashed_password))
-
-    result = cursor.fetchone()
-    conn.close()
-
-    if result:
-        return {
-            "success": True,
-            "role": result[0],
-            "must_change_password": result[1]
-        }
-
-    return {"success": False}
 
 
 # File paths
 STOCK_FILE = DB_FILE = "inventory.db"
 MASTER_FILE = "Item_master.xlsx"
 
-def initialize_users_table():
-    conn = sqlite3.connect(DB_FILE)
-    cursor = conn.cursor()
-
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        username TEXT UNIQUE,
-        password TEXT,
-        role TEXT,
-        must_change_password INTEGER DEFAULT 1
-    )
-    """)
-
-    # Create default admin if not exists
-    admin_password = hashlib.sha256("admin123".encode()).hexdigest()
-
-    cursor.execute("SELECT * FROM users WHERE username = ?", ("admin",))
-    if not cursor.fetchone():
-        cursor.execute("""
-            INSERT INTO users (username, password, role, must_change_password)
-            VALUES (?, ?, ?, ?)
-        """, ("admin", admin_password, "admin", 0))
-
-    conn.commit()
-    conn.close()
-
 # ---------- Helper Functions ----------
-
-
-
-# ---------- INITIALIZE USERS TABLE ----------
 
 def initialize_database():
     """Create inventory table if it doesn't exist."""
@@ -211,8 +165,6 @@ def delete_stock_row(row_id):
 
 # Database initialization
 initialize_database()
-initialize_users_table()
-
 
 # ---------- Streamlit Interface ----------
 
@@ -228,86 +180,20 @@ if not st.session_state.logged_in:
     password = st.text_input("Password", type="password")
 
     if st.button("Login"):
-        result = check_login(username, password)
-
-        if result["success"]:
+        if check_login(username, password):
             st.session_state.logged_in = True
-            st.session_state.username = username
-            st.session_state.role = result["role"]
-            st.session_state.must_change_password = result["must_change_password"]
+            st.success("Login Successful!")
             st.rerun()
         else:
             st.error("Invalid Username or Password")
 
     st.stop()
 
-#-------Force Password Change-----------
-
-if st.session_state.get("must_change_password") == 1:
-    st.title("🔑 Change Default Password")
-
-    new_password = st.text_input("New Password", type="password")
-
-    if st.button("Update Password"):
-        conn = sqlite3.connect(DB_FILE)
-        cursor = conn.cursor()
-
-        hashed = hashlib.sha256(new_password.encode()).hexdigest()
-
-        cursor.execute("""
-            UPDATE users
-            SET password = ?, must_change_password = 0
-            WHERE username = ?
-        """, (hashed, st.session_state.username))
-
-        conn.commit()
-        conn.close()
-
-        st.session_state.must_change_password = 0
-        st.success("Password updated successfully!")
-        st.rerun()
-
-    st.stop()
-
-#----Logout Button------------
-
-col1, col2 = st.columns([6,1])
-with col2:
-    if st.button("🚪 Logout"):
-        st.session_state.clear()
-        st.rerun()
-
-
-#----------Admin User Creation Panel----------
-
-if st.session_state.role == "admin":
-    st.sidebar.markdown("### 👨‍💼 Admin Panel")
-
-    new_user = st.sidebar.text_input("New Username")
-    if st.sidebar.button("Create User"):
-
-        default_password = hashlib.sha256("123456".encode()).hexdigest()
-
-        conn = sqlite3.connect(DB_FILE)
-        cursor = conn.cursor()
-
-        try:
-            cursor.execute("""
-    INSERT INTO users (username, password, role, must_change_password)
-    VALUES (?, ?, ?, ?)
-""", (new_user, default_password, "user", 1))
-            conn.commit()
-            st.sidebar.success("User created! Default password: 123456")
-
-        except:
-            st.sidebar.error("User already exists")
-
-        conn.close()
-
 
 st.title("📦 Stock Entry System")
 
 # Initialize stock file
+initialize_database()
 
 # Load master data
 master_df = load_master_data()
@@ -573,20 +459,21 @@ if st.button("➕ Add Stock"):
 
         st.rerun()
 
-
-    # ---------- Delete Section ----------
-
 # Display current stock
 st.subheader("📊 Current Stock")
 stock_df = load_stock_data()
 
 if not stock_df.empty:
 
+    # Hide internal column
     display_df = stock_df.drop(columns=["item_master_id"], errors="ignore")
+
+    # Make display index start from 1
     display_df.index = range(1, len(display_df) + 1)
+
     st.dataframe(display_df)
 
-    # Export
+    # ---------- Export to Excel ----------
     import io
     buffer = io.BytesIO()
     display_df.to_excel(buffer, index=False, engine="openpyxl")
@@ -599,52 +486,64 @@ if not stock_df.empty:
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
 
-    # 🔐 ADMIN DELETE SECTION
-    
-    if st.session_state.role == "admin":
+    # ---------- Delete Section ----------
+    st.markdown("### 🗑 Delete Stock Entry")
 
-        st.markdown("### 🗑 Delete Stock Entry")
+    row_to_delete = st.selectbox(
+        "Select ID to Delete",
+        stock_df["id"]
+    )
 
-        row_to_delete = st.selectbox(
-            "Select ID to Delete",
-            stock_df["id"]
-        )
-
-        if st.button("Delete Selected Entry"):
-            delete_stock_row(row_to_delete)
-            st.success("✅ Stock entry deleted successfully!")
-            st.rerun()
-
-        st.markdown("### 🗑 Bulk Delete (By ID Range)")
-
-        min_id = int(stock_df["id"].min())
-        max_id = int(stock_df["id"].max())
-
-        col1, col2 = st.columns(2)
-
-        with col1:
-            start_id = st.number_input("From ID", min_value=min_id, max_value=max_id)
-
-        with col2:
-            end_id = st.number_input("To ID", min_value=min_id, max_value=max_id)
-
-        if st.button("Delete Range"):
-
-            if start_id > end_id:
-                st.error("Start ID cannot be greater than End ID")
-            else:
-                conn = sqlite3.connect(DB_FILE)
-                cursor = conn.cursor()
-                cursor.execute(
-                    "DELETE FROM inventory WHERE id BETWEEN ? AND ?",
-                    (start_id, end_id)
-                )
-                conn.commit()
-                conn.close()
-
-                st.success(f"Deleted records from ID {start_id} to {end_id}")
-                st.rerun()
+    if st.button("Delete Selected Entry"):
+        delete_stock_row(row_to_delete)
+        st.success("✅ Stock entry deleted successfully!")
+        st.rerun()
 
 else:
     st.info("No stock entries available.")
+
+st.markdown("### 🗑 Bulk Delete (By ID Range)")
+
+if not stock_df.empty:
+
+    min_id = int(stock_df["id"].min())
+    max_id = int(stock_df["id"].max())
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        start_id = st.number_input(
+            "From ID",
+            min_value=min_id,
+            max_value=max_id,
+            step=1
+        )
+
+    with col2:
+        end_id = st.number_input(
+            "To ID",
+            min_value=min_id,
+            max_value=max_id,
+            step=1
+        )
+
+    if st.button("Delete Range"):
+
+        if start_id > end_id:
+            st.error("Start ID cannot be greater than End ID")
+        else:
+            conn = sqlite3.connect(DB_FILE)
+            cursor = conn.cursor()
+            cursor.execute(
+                "DELETE FROM inventory WHERE id BETWEEN ? AND ?",
+                (start_id, end_id)
+            )
+            conn.commit()
+            conn.close()
+
+            st.success(f"Deleted records from ID {start_id} to {end_id}")
+            st.rerun()
+
+else:
+    st.info("No records available for deletion.")
 
