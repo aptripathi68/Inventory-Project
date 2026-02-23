@@ -454,8 +454,9 @@ else:
     latitude, longitude = None, None
     
 # ---------- Rack & Shelf ----------
-rack = st.number_input("Rack Number", min_value=0, step=1)
-shelf = st.number_input("Shelf Number", min_value=0, step=1)
+rack = st.number_input("Rack Number", value=None, placeholder="Enter Rack Number")
+shelf = st.number_input("Shelf Number", value=None, placeholder="Enter Shelf Number")
+
 
 # Display item details
 st.write("**Item Details:**")
