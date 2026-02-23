@@ -593,7 +593,6 @@ source = st.selectbox(
     "Select Source",
     source_options
 )
-thickness = st.number_input("Thickness (mm)", value=None, placeholder="Enter thickness")
 quantity = st.number_input("Enter Quantity",value=None, placeholder="Enter Quantity in Numbers")
 price = st.number_input("Enter Price per unit", value=None, placeholder="Enter Price")
 st.markdown("### 📸 Item Snapshot (Optional)")
