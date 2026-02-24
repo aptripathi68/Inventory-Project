@@ -1,5 +1,6 @@
 #---------THE BELOW CODE SUCCESSFUL CAPTURES INVENTORY INPUT, GPS LOCATION, QR CODE, SNAPSHOT---------
-#---------With all facilities without initilaisation of fields 
+#---------With all facilities without initilaisation of fields-----------------
+#---------Multiple User facility working and Viusible for management in admin section--------
 
 
 
@@ -45,8 +46,10 @@ def check_login(username, password):
 
 
 # File paths
-DB_FILE = "inventory.db"
+DB_FILE = os.path.join(os.getcwd(), "inventory.db")
 MASTER_FILE = "Item_master.xlsx"
+
+
 
 def initialize_users_table():
     conn = sqlite3.connect(DB_FILE)
@@ -87,8 +90,7 @@ def clean_value(val):
 def initialize_database_safe():
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
-    
-    # Only create table if it doesn't exist
+
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS inventory (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -120,9 +122,13 @@ def initialize_database_safe():
             added_by TEXT
         )
     """)
+
     conn.commit()
     conn.close()
-    
+
+# Ensure tables exist
+initialize_users_table()
+initialize_database_safe()
 
 def append_stock(selected_row, source, vendor_name, make,
                  vehicle_number, invoice_date, project_name,
@@ -244,11 +250,6 @@ def delete_stock_row(row_id, username, role):
     conn.commit()
     conn.close()
 
-# Database initialization
-# Initialize database only if file does not exist
-if not os.path.exists(DB_FILE):
-    initialize_database_safe()
-    initialize_users_table()
 
 # ---------- Streamlit Interface ----------
 
@@ -305,6 +306,25 @@ if st.session_state.get("must_change_password") == 1:
 
     st.stop()
 
+#----Company Name and Logo diaplay--------
+
+# ---------- COMPANY HEADER (TOP OF APP) ----------
+
+st.markdown("""
+    <div style='text-align: center;'>
+        <img src="data:image/jpeg;base64,{}" width="140">
+        <h1 style='margin-bottom:0;'>
+            Kalpadeep Industries Private Limited
+        </h1>
+        <p style='color: gray; margin-top:0; font-size:18px;'>
+            Inventory Management System
+        </p>
+    </div>
+""".format(
+    __import__("base64").b64encode(open("Kalpadeep Logo.jpeg", "rb").read()).decode()
+), unsafe_allow_html=True)
+
+st.markdown("---")
 #----Logout Button------------
 
 col1, col2 = st.columns([6,1])
@@ -314,82 +334,89 @@ with col2:
         st.rerun()
 
 
-#----------Admin User Creation Panel----------
-
+# ---------- Admin Panel ----------
 if st.session_state.get("role") == "admin":
 
     st.sidebar.markdown("### 👨‍💼 Admin Panel")
 
-    # ---------------- CREATE USER ----------------
-    new_user = st.sidebar.text_input("New Username")
+    # Create User Form
+    with st.sidebar.form("create_user_form", clear_on_submit=True):
+        new_user = st.text_input("New Username")
+        submitted = st.form_submit_button("Create User")
 
-if st.sidebar.button("Create User"):
-    if not new_user.strip():
-        st.sidebar.error("Username cannot be empty")
-    else:
-        default_password = hashlib.sha256("123456".encode()).hexdigest()
-        conn = sqlite3.connect(DB_FILE)
-        cursor = conn.cursor()
-        try:
-            cursor.execute("""
-                INSERT INTO users (username, password, role, must_change_password)
-                VALUES (?, ?, ?, ?)
-            """, (new_user, default_password, "user", 1))
-            conn.commit()
-            st.sidebar.success("User created! Default password: 123456")
-        except sqlite3.IntegrityError:
-            st.sidebar.error("User already exists")
-        conn.close()
+    if submitted:
+        if not new_user.strip():
+            st.sidebar.error("Username cannot be empty")
+        else:
+            default_password = hashlib.sha256("123456".encode()).hexdigest()
+            conn = sqlite3.connect(DB_FILE)
+            cursor = conn.cursor()
+            try:
+                cursor.execute(
+                    """
+                    INSERT INTO users (username, password, role, must_change_password)
+                    VALUES (?, ?, ?, ?)
+                    """,
+                    (new_user.strip(), default_password, "user", 1)
+                )
+                conn.commit()
+                st.sidebar.success("User created! Default password: 123456")
+            except sqlite3.IntegrityError:
+                st.sidebar.error("User already exists")
+            finally:
+                conn.close()
 
-    # ---------------- USER MANAGEMENT ----------------
+            # Clear the input after creation
+            st.session_state["new_user_name"] = ""
+            st.rerun()
+
+    st.sidebar.markdown("---")
+
+    # ---- User Management (always visible for admin) ----
     st.subheader("👤 User Management")
 
     conn = sqlite3.connect(DB_FILE)
-    cursor = conn.cursor()
-    cursor.execute("SELECT id, username, role FROM users")
-    users = cursor.fetchall()
+    user_df = pd.read_sql_query("SELECT id, username, role FROM users ORDER BY id", conn)
     conn.close()
 
-    if users:
-
-        user_df = pd.DataFrame(users, columns=["ID", "Username", "Role"])
+    if user_df.empty:
+        st.info("No users found.")
+    else:
         st.dataframe(user_df, use_container_width=True)
 
         selected_user = st.selectbox(
             "Select User",
-            user_df["Username"]
+            user_df["username"],
+            key="selected_user"
         )
 
         col1, col2 = st.columns(2)
 
-        # 🔑 RESET PASSWORD
+        # Reset Password
         with col1:
-            if st.button("🔑 Reset Password"):
-
+            if st.button("🔑 Reset Password", key="btn_reset_password"):
                 default_password = hashlib.sha256("123456".encode()).hexdigest()
-
                 conn = sqlite3.connect(DB_FILE)
                 cursor = conn.cursor()
-
-                cursor.execute("""
+                cursor.execute(
+                    """
                     UPDATE users
                     SET password = ?, must_change_password = 1
                     WHERE username = ?
-                """, (default_password, selected_user))
-
+                    """,
+                    (default_password, selected_user)
+                )
                 conn.commit()
                 conn.close()
-
                 st.success("Password reset to default (123456).")
                 st.rerun()
 
-        # ❌ DELETE USER
+        # Delete User
         with col2:
-            if st.button("❌ Delete User"):
-
+            if st.button("❌ Delete User", key="btn_delete_user"):
                 if selected_user == "admin":
                     st.error("Admin account cannot be deleted.")
-                elif selected_user == st.session_state.username:
+                elif selected_user == st.session_state.get("username"):
                     st.error("You cannot delete yourself.")
                 else:
                     conn = sqlite3.connect(DB_FILE)
@@ -397,15 +424,11 @@ if st.sidebar.button("Create User"):
                     cursor.execute("DELETE FROM users WHERE username = ?", (selected_user,))
                     conn.commit()
                     conn.close()
-
                     st.success("User deleted successfully.")
                     st.rerun()
-
-    else:
-        st.info("No users found.")
-    
-
-st.title("📦 Stock Entry System")
+else:
+    # Non-admin: do NOT show admin tools
+    pass
 
 # Initialize stock file
 
